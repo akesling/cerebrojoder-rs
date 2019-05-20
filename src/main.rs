@@ -17,27 +17,38 @@ fn read_char() -> u8 {
 fn main() -> io::Result<()> {
     // TODO(Alex): Make this all safe.
     unsafe {
-        io::stdin().read(&mut CODE)?;
+        let mut buffer = String::new();
+        io::stdin().read_to_string(&mut buffer)?;
 
+        let code_length;
+        {
+            // Precompute jumps and remove comments
+            let mut stack_index: usize = 0;
+            let mut code_counter = 0;
+            for code_char in buffer.chars() {
+                match code_char {
+                    '<' | '>'| '+'| '-'| '.'| ',' => {
+                        CODE[code_counter] = code_char as u8;
+                        code_counter = code_counter + 1;
+                    },
+                    '[' => {
+                        stack_index = code_counter;
+                        stack_index = stack_index + 1;
 
-        // TODO(Alex): Remove the necessity to count this manually.
-        let mut code_length = 0;
+                        CODE[code_counter] = code_char as u8;
+                        code_counter = code_counter + 1;
+                    },
+                    ']' => {
+                        stack_index = stack_index - 1;
 
-        // Precompute jumps
-        let mut stack_index: usize = 0;
-        for (code_counter, code_char) in CODE.iter().enumerate() {
-            match code_char.clone() as char {
-                '<' | '>'| '+'| '-'| '.'| ',' => (),
-                '[' => {
-                    stack_index = code_counter;
-                    stack_index = stack_index + 1;
-                },
-                ']' => {
-                    stack_index = stack_index - 1;
-                    JUMPS[stack_index] = code_counter;
-                    JUMPS[code_counter] = stack_index;
-                },
-                _ => (),
+                        JUMPS[stack_index] = code_counter;
+                        JUMPS[code_counter] = stack_index;
+
+                        CODE[code_counter] = code_char as u8;
+                        code_counter = code_counter + 1;
+                    },
+                    _ => (),
+                }
             }
             code_length = code_counter + 1;
         }
@@ -67,6 +78,11 @@ fn main() -> io::Result<()> {
             }
             code_ptr = code_ptr + 1;
         }
+
+        for c in CODE.iter() {
+            print!("{}", c.clone() as char);
+        }
     }
+
     Ok(())
 }
