@@ -63,24 +63,22 @@ fn main() -> io::Result<()> {
                 '+' => DATA[data_ptr] = DATA[data_ptr] + 1,
                 '-' => DATA[data_ptr] = DATA[data_ptr] - 1,
                 '[' => {
-                    if DATA[data_ptr] != 0 {
-                        code_ptr = JUMPS[code_ptr];
-                    }
-                },
-                ']' => {
                     if DATA[data_ptr] == 0 {
                         code_ptr = JUMPS[code_ptr];
                     }
                 },
-                '.' => print!("{}", DATA[data_ptr] as char),
+                ']' => {
+                    if DATA[data_ptr] != 0 {
+                        code_ptr = JUMPS[code_ptr];
+                    }
+                },
+                '.' => {
+                    print!("{}", DATA[data_ptr] as char);
+                },
                 ',' => DATA[data_ptr] = read_char(),
                 _ => (),
             }
             code_ptr = code_ptr + 1;
-        }
-
-        for c in CODE.iter() {
-            print!("{}", c.clone() as char);
         }
     }
 
