@@ -3,7 +3,7 @@ use std::io::{self, Read};
 const HEAPSIZE: usize = 30000;
 const STACKSIZE: usize = 30000;
 
-static mut DATA: [u8; HEAPSIZE] = [0; HEAPSIZE];
+static mut DATA: [i8; HEAPSIZE] = [0; HEAPSIZE];
 static mut CODE: [u8; HEAPSIZE] = [0; HEAPSIZE];
 static mut JUMPS: [usize; HEAPSIZE] = [0; HEAPSIZE];
 static mut STACK: [usize; STACKSIZE] = [0; STACKSIZE];
@@ -75,9 +75,9 @@ fn main() -> io::Result<()> {
                     }
                 },
                 '.' => {
-                    print!("{}", DATA[data_ptr] as char);
+                    print!("{}", DATA[data_ptr] as u8 as char);
                 },
-                ',' => DATA[data_ptr] = read_char(),
+                ',' => DATA[data_ptr] = read_char() as i8,
                 _ => (),
             }
             code_ptr = code_ptr + 1;
