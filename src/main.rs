@@ -1,10 +1,12 @@
 use std::io::{self, Read};
 
 const HEAPSIZE: usize = 30000;
+const STACKSIZE: usize = 30000;
 
 static mut DATA: [u8; HEAPSIZE] = [0; HEAPSIZE];
 static mut CODE: [u8; HEAPSIZE] = [0; HEAPSIZE];
 static mut JUMPS: [usize; HEAPSIZE] = [0; HEAPSIZE];
+static mut STACK: [usize; STACKSIZE] = [0; STACKSIZE];
 
 fn read_char() -> u8 {
     std::io::stdin()
@@ -32,7 +34,7 @@ fn main() -> io::Result<()> {
                         code_counter = code_counter + 1;
                     },
                     '[' => {
-                        stack_index = code_counter;
+                        STACK[stack_index] = code_counter;
                         stack_index = stack_index + 1;
 
                         CODE[code_counter] = code_char as u8;
@@ -41,8 +43,8 @@ fn main() -> io::Result<()> {
                     ']' => {
                         stack_index = stack_index - 1;
 
-                        JUMPS[stack_index] = code_counter;
-                        JUMPS[code_counter] = stack_index;
+                        JUMPS[STACK[stack_index]] = code_counter;
+                        JUMPS[code_counter] = STACK[stack_index];
 
                         CODE[code_counter] = code_char as u8;
                         code_counter = code_counter + 1;
