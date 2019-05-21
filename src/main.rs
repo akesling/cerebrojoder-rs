@@ -81,15 +81,12 @@ fn parse_and_compile(buffer: String) -> ([Instruction; HEAPSIZE], usize, [usize;
     (code_segment, code_length, jump_lookup)
 }
 
-fn main() -> io::Result<()> {
-    let mut buffer = String::new();
-    io::stdin().read_to_string(&mut buffer)?;
-
+fn execute(
+  code_segment: [Instruction; HEAPSIZE], code_length: usize, jump_lookup: [usize; HEAPSIZE])
+  -> io::Result<()> {
     // 8bit signed rollover is necessary for the mandelbrot implementation, so we use i8 for the
     // data segment.
     let mut data_segment: [i8; HEAPSIZE] = [0; HEAPSIZE];
-
-    let (code_segment, code_length, jump_lookup) = parse_and_compile(buffer);
 
     // Execute
     let mut code_ptr: usize = 0;
@@ -120,4 +117,13 @@ fn main() -> io::Result<()> {
     }
 
     Ok(())
+}
+
+fn main() -> io::Result<()> {
+    let mut buffer = String::new();
+    io::stdin().read_to_string(&mut buffer)?;
+
+    let (code_segment, code_length, jump_lookup) = parse_and_compile(buffer);
+
+    execute(code_segment, code_length, jump_lookup)
 }
