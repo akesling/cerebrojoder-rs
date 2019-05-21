@@ -5,10 +5,10 @@ const STACKSIZE: usize = 30000;
 
 #[derive(Copy, Clone)]
 enum Instruction {
-    Backward,
-    Forward,
-    Subtract,
-    Add,
+    Backward(u8),
+    Forward(u8),
+    Subtract(u8),
+    Add(u8),
     Land,
     Jump,
     Write,
@@ -19,10 +19,10 @@ enum Instruction {
 impl Instruction {
     fn get_instruction(character: char) -> Instruction {
         match character {
-            '<' => Instruction::Backward,
-            '>' => Instruction::Forward,
-            '-' => Instruction::Subtract,
-            '+' => Instruction::Add,
+            '<' => Instruction::Backward(1),
+            '>' => Instruction::Forward(1),
+            '-' => Instruction::Subtract(1),
+            '+' => Instruction::Add(1),
             '[' => Instruction::Land,
             ']' => Instruction::Jump,
             '.' => Instruction::Write,
@@ -86,14 +86,14 @@ fn main() -> io::Result<()> {
     }
 
     // Execute
-    let mut code_ptr = 0;
-    let mut data_ptr = 0;
+    let mut code_ptr: usize = 0;
+    let mut data_ptr: usize = 0;
     while code_ptr < code_length {
         match code_segment[code_ptr] {
-            Instruction::Backward => data_ptr = data_ptr - 1,
-            Instruction::Forward => data_ptr = data_ptr + 1,
-            Instruction::Add => data_segment[data_ptr] = data_segment[data_ptr] + 1,
-            Instruction::Subtract => data_segment[data_ptr] = data_segment[data_ptr] - 1,
+            Instruction::Backward(v) => data_ptr = data_ptr - v as usize,
+            Instruction::Forward(v) => data_ptr = data_ptr + v as usize,
+            Instruction::Add(v) => data_segment[data_ptr] = data_segment[data_ptr] + v as i8,
+            Instruction::Subtract(v) => data_segment[data_ptr] = data_segment[data_ptr] - v as i8,
             Instruction::Land => {
                 if data_segment[data_ptr] == 0 {
                     code_ptr = jump_lookup[code_ptr];
