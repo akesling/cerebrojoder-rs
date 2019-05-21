@@ -17,12 +17,12 @@ enum Instruction {
 }
 
 impl Instruction {
-    fn get_instruction(character: char) -> Instruction {
+    fn get_instruction(character: char, value: u8) -> Instruction {
         match character {
-            '<' => Instruction::Backward(1),
-            '>' => Instruction::Forward(1),
-            '-' => Instruction::Subtract(1),
-            '+' => Instruction::Add(1),
+            '<' => Instruction::Backward(value),
+            '>' => Instruction::Forward(value),
+            '-' => Instruction::Subtract(value),
+            '+' => Instruction::Add(value),
             '[' => Instruction::Land,
             ']' => Instruction::Jump,
             '.' => Instruction::Write,
@@ -40,8 +40,18 @@ fn read_char() -> u8 {
         .map(|byte| byte as u8).unwrap()
 }
 
-fn take_one(buffer: &str) -> &str {
-    &buffer[1..]
+fn take_one(buffer: &str) -> (&str, &str) {
+    (&buffer[0..1], &buffer[1..])
+}
+
+fn take_all(buffer: &str, character: char) -> (&str, &str) {
+    let to_compare = character.to_string();
+    let mut partition = 1;
+    while buffer[partition-1..partition] == to_compare {
+        partition = partition + 1;
+    }
+    partition = partition - 1;
+    (&buffer[0..partition], &buffer[partition..])
 }
 
 fn parse_and_compile(buffer: &str) -> ([Instruction; HEAPSIZE], usize, [usize; HEAPSIZE]) {
@@ -54,23 +64,27 @@ fn parse_and_compile(buffer: &str) -> ([Instruction; HEAPSIZE], usize, [usize; H
         // Precompute jumps and remove comments
         let mut stack_index: usize = 0;
         let mut code_counter = 0;
-        let mut tail = buffer;
+
+        // TODO(Alex): Is there a better way to do this?  Maybe a stream of some form?
+        let mut tail: &str = buffer;
         while !tail.is_empty() {
             let code_char = tail.chars().next().unwrap();
             match code_char {
                 '<' | '>'| '+'| '-'| '.'| ',' => {
-                    tail = take_one(tail);
+                    let (_head, _tail) = take_all(tail, code_char);
+                    tail = _tail;
 
-                    code_segment[code_counter] = Instruction::get_instruction(code_char);
+                    code_segment[code_counter] = Instruction::get_instruction(code_char, _head.len() as u8);
                     code_counter = code_counter + 1;
                 },
                 '[' => {
                     stack_lookup[stack_index] = code_counter;
                     stack_index = stack_index + 1;
 
-                    tail = take_one(tail);
+                    let (_head, _tail) = take_one(tail);
+                    tail = _tail;
 
-                    code_segment[code_counter] = Instruction::get_instruction(code_char);
+                    code_segment[code_counter] = Instruction::get_instruction(code_char, 1);
                     code_counter = code_counter + 1;
                 },
                 ']' => {
@@ -79,12 +93,16 @@ fn parse_and_compile(buffer: &str) -> ([Instruction; HEAPSIZE], usize, [usize; H
                     jump_lookup[stack_lookup[stack_index]] = code_counter;
                     jump_lookup[code_counter] = stack_lookup[stack_index];
 
-                    tail = take_one(tail);
+                    let (_head, _tail) = take_one(tail);
+                    tail = _tail;
 
-                    code_segment[code_counter] = Instruction::get_instruction(code_char);
+                    code_segment[code_counter] = Instruction::get_instruction(code_char, 1);
                     code_counter = code_counter + 1;
                 },
-                _ => tail = take_one(tail),
+                _ => {
+                    let (_head, _tail) = take_one(tail);
+                    tail = _tail;
+                },
             }
         }
         code_length = code_counter + 1;
