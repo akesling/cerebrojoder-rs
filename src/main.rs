@@ -44,7 +44,10 @@ fn main() -> io::Result<()> {
     let mut buffer = String::new();
     io::stdin().read_to_string(&mut buffer)?;
 
+    // 8bit signed rollover is necessary for the mandelbrot implementation, so we use i8 for the
+    // data segment.
     let mut data_segment: [i8; HEAPSIZE] = [0; HEAPSIZE];
+
     let mut code_segment: [Instruction; HEAPSIZE] = [Instruction::Nop; HEAPSIZE];
     let mut jump_lookup: [usize; HEAPSIZE] = [0; HEAPSIZE];
     let mut stack_lookup: [usize; STACKSIZE] = [0; STACKSIZE];
