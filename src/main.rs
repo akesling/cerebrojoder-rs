@@ -40,7 +40,11 @@ fn read_char() -> u8 {
         .map(|byte| byte as u8).unwrap()
 }
 
-fn parse_and_compile(buffer: String) -> ([Instruction; HEAPSIZE], usize, [usize; HEAPSIZE]) {
+fn take_one(buffer: &str) -> &str {
+    &buffer[1..]
+}
+
+fn parse_and_compile(buffer: &str) -> ([Instruction; HEAPSIZE], usize, [usize; HEAPSIZE]) {
     let mut code_segment: [Instruction; HEAPSIZE] = [Instruction::Nop; HEAPSIZE];
     let mut jump_lookup: [usize; HEAPSIZE] = [0; HEAPSIZE];
     let mut stack_lookup: [usize; STACKSIZE] = [0; STACKSIZE];
@@ -50,15 +54,21 @@ fn parse_and_compile(buffer: String) -> ([Instruction; HEAPSIZE], usize, [usize;
         // Precompute jumps and remove comments
         let mut stack_index: usize = 0;
         let mut code_counter = 0;
-        for code_char in buffer.chars() {
+        let mut tail = buffer;
+        while !tail.is_empty() {
+            let code_char = tail.chars().next().unwrap();
             match code_char {
                 '<' | '>'| '+'| '-'| '.'| ',' => {
+                    tail = take_one(tail);
+
                     code_segment[code_counter] = Instruction::get_instruction(code_char);
                     code_counter = code_counter + 1;
                 },
                 '[' => {
                     stack_lookup[stack_index] = code_counter;
                     stack_index = stack_index + 1;
+
+                    tail = take_one(tail);
 
                     code_segment[code_counter] = Instruction::get_instruction(code_char);
                     code_counter = code_counter + 1;
@@ -69,10 +79,12 @@ fn parse_and_compile(buffer: String) -> ([Instruction; HEAPSIZE], usize, [usize;
                     jump_lookup[stack_lookup[stack_index]] = code_counter;
                     jump_lookup[code_counter] = stack_lookup[stack_index];
 
+                    tail = take_one(tail);
+
                     code_segment[code_counter] = Instruction::get_instruction(code_char);
                     code_counter = code_counter + 1;
                 },
-                _ => (),
+                _ => tail = take_one(tail),
             }
         }
         code_length = code_counter + 1;
@@ -123,7 +135,7 @@ fn main() -> io::Result<()> {
     let mut buffer = String::new();
     io::stdin().read_to_string(&mut buffer)?;
 
-    let (code_segment, code_length, jump_lookup) = parse_and_compile(buffer);
+    let (code_segment, code_length, jump_lookup) = parse_and_compile(&buffer);
 
     execute(code_segment, code_length, jump_lookup)
 }
