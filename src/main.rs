@@ -47,7 +47,7 @@ fn take_one(buffer: &str) -> (&str, &str) {
 fn take_all(buffer: &str, character: char) -> (&str, &str) {
     let to_compare = character.to_string();
     let mut partition = 1;
-    while buffer[partition-1..partition] == to_compare {
+    while buffer[partition-1..partition] == to_compare && partition < std::u8::MAX as usize {
         partition = partition + 1;
     }
     partition = partition - 1;
