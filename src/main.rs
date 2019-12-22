@@ -1,6 +1,6 @@
 use std::io::Read;
 
-use ::cerebrojoder_rs::{Instruction, Module, HEAPSIZE, read_char, BfInterpreter, Parser};
+use ::cerebrojoder_rs::{read_char, BfInterpreter, Instruction, Module, Parser, HEAPSIZE};
 
 fn execute(module: &Module<Instruction>) -> std::io::Result<()> {
     // 8bit signed rollover is necessary for the mandelbrot implementation, so we use i8 for the
@@ -20,15 +20,15 @@ fn execute(module: &Module<Instruction>) -> std::io::Result<()> {
                 if data_segment[data_ptr] == 0 {
                     code_ptr = module.jump_lookup[code_ptr];
                 }
-            },
+            }
             Instruction::Jump => {
                 if data_segment[data_ptr] != 0 {
                     code_ptr = module.jump_lookup[code_ptr];
                 }
-            },
+            }
             Instruction::Write => {
                 print!("{}", data_segment[data_ptr] as u8 as char);
-            },
+            }
             Instruction::Read => data_segment[data_ptr] = read_char() as i8,
             Instruction::Nop => (),
         }

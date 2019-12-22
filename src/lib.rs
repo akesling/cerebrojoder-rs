@@ -50,7 +50,8 @@ pub fn read_char() -> u8 {
         .bytes()
         .next()
         .and_then(|result| result.ok())
-        .map(|byte| byte as u8).unwrap()
+        .map(|byte| byte as u8)
+        .unwrap()
 }
 
 #[inline]
@@ -62,13 +63,12 @@ fn take_one(buffer: &str) -> (&str, &str) {
 fn take_all(buffer: &str, character: char) -> (&str, &str) {
     let to_compare = character.to_string();
     let mut partition = 1;
-    while buffer[partition-1..partition] == to_compare && partition < std::u8::MAX as usize {
+    while buffer[partition - 1..partition] == to_compare && partition < std::u8::MAX as usize {
         partition = partition + 1;
     }
     partition = partition - 1;
     (&buffer[0..partition], &buffer[partition..])
 }
-
 
 pub struct BfInterpreter;
 impl Parser<Instruction> for BfInterpreter {
@@ -88,13 +88,14 @@ impl Parser<Instruction> for BfInterpreter {
             while !tail.is_empty() {
                 let code_char = tail.chars().next().unwrap();
                 match code_char {
-                    '<' | '>'| '+'| '-'| '.'| ',' => {
+                    '<' | '>' | '+' | '-' | '.' | ',' => {
                         let (_head, _tail) = take_all(tail, code_char);
                         tail = _tail;
 
-                        code_segment[code_counter] = Instruction::get_instruction(code_char, _head.len() as u8);
+                        code_segment[code_counter] =
+                            Instruction::get_instruction(code_char, _head.len() as u8);
                         code_counter = code_counter + 1;
-                    },
+                    }
                     // TODO(Alex): Investigate simple loop unrolling.
                     '[' => {
                         stack_lookup[stack_index] = code_counter;
@@ -105,7 +106,7 @@ impl Parser<Instruction> for BfInterpreter {
 
                         code_segment[code_counter] = Instruction::get_instruction(code_char, 1);
                         code_counter = code_counter + 1;
-                    },
+                    }
                     ']' => {
                         stack_index = stack_index - 1;
 
@@ -117,11 +118,11 @@ impl Parser<Instruction> for BfInterpreter {
 
                         code_segment[code_counter] = Instruction::get_instruction(code_char, 1);
                         code_counter = code_counter + 1;
-                    },
+                    }
                     _ => {
                         let (_head, _tail) = take_one(tail);
                         tail = _tail;
-                    },
+                    }
                 }
             }
             code_length = code_counter + 1;
@@ -134,4 +135,3 @@ impl Parser<Instruction> for BfInterpreter {
         }
     }
 }
-
