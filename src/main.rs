@@ -1,7 +1,8 @@
-#[cfg(feature = "interpreter")]
+// These "unused" imports are used in all conditional compilation targets.
+#[allow(unused_imports)]
 use std::io::Read;
 
-#[cfg(feature = "interpreter")]
+#[allow(unused_imports)]
 use ::cerebrojoder_rs::{BfInterpreter, Executor, Parser};
 
 #[cfg(feature = "interpreter")]
@@ -15,8 +16,15 @@ fn main() -> std::io::Result<()> {
 }
 
 #[cfg(feature = "wasmer-backend")]
-fn main() -> std::io::Result<()> {
-    println!("Not yet implemented!");
+use ::cerebrojoder_rs::{Compiler, WasmJit};
 
-    Ok(())
+#[cfg(feature = "wasmer-backend")]
+fn main() -> std::io::Result<()> {
+    let mut buffer = String::new();
+    std::io::stdin().read_to_string(&mut buffer)?;
+
+    let ir_module = BfInterpreter::parse(&buffer);
+    let wasm_module = WasmJit::compile(&ir_module);
+
+    WasmJit::execute(&wasm_module)
 }

@@ -44,6 +44,10 @@ pub trait Parser<TargetInstructionType> {
     fn parse(buffer: &str) -> Module<TargetInstructionType>;
 }
 
+pub trait Compiler<SourceInstructionType, TargetInstructionType> {
+    fn compile(module: &Module<SourceInstructionType>) -> Module<TargetInstructionType>;
+}
+
 pub trait Executor<TargetInstructionType> {
     fn execute(module: &Module<TargetInstructionType>) -> std::io::Result<()>;
 }
@@ -175,6 +179,31 @@ impl Executor<Instruction> for BfInterpreter {
             }
             code_ptr = code_ptr + 1;
         }
+
+        Ok(())
+    }
+}
+
+pub struct WasmJit;
+
+// Not yet implemented;
+type WASM = u8;
+
+impl Compiler<Instruction, WASM> for WasmJit {
+    fn compile(_module: &Module<Instruction>) -> Module<WASM> {
+        println!("WasmJit compiler not yet implemented.");
+
+        Module {
+            code_segment: [0; HEAPSIZE],
+            code_length: 0,
+            jump_lookup: [0; HEAPSIZE],
+        }
+    }
+}
+
+impl Executor<WASM> for WasmJit {
+    fn execute(_module: &Module<WASM>) -> std::io::Result<()> {
+        println!("WasmJit executor not yet implemented.");
 
         Ok(())
     }
