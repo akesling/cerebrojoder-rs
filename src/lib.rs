@@ -16,6 +16,7 @@ pub enum Instruction {
 }
 
 impl Instruction {
+    #[inline]
     pub fn get_instruction(character: char, value: u8) -> Instruction {
         match character {
             '<' => Instruction::Backward(value),

@@ -2,6 +2,7 @@ use ::cerebrojoder_rs::{Instruction, Module, HEAPSIZE, STACKSIZE};
 
 use std::io::{self, Read};
 
+#[inline]
 fn read_char() -> u8 {
     std::io::stdin()
         .bytes() 
@@ -10,10 +11,12 @@ fn read_char() -> u8 {
         .map(|byte| byte as u8).unwrap()
 }
 
+#[inline]
 fn take_one(buffer: &str) -> (&str, &str) {
     (&buffer[0..1], &buffer[1..])
 }
 
+#[inline]
 fn take_all(buffer: &str, character: char) -> (&str, &str) {
     let to_compare = character.to_string();
     let mut partition = 1;
