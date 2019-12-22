@@ -77,6 +77,7 @@ fn parse_and_compile(buffer: &str) -> ([Instruction; HEAPSIZE], usize, [usize; H
                     code_segment[code_counter] = Instruction::get_instruction(code_char, _head.len() as u8);
                     code_counter = code_counter + 1;
                 },
+                // TODO(Alex): Investigate simple loop unrolling.
                 '[' => {
                     stack_lookup[stack_index] = code_counter;
                     stack_index = stack_index + 1;
