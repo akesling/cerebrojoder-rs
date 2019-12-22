@@ -49,7 +49,7 @@ pub trait Executor<TargetInstructionType> {
 }
 
 #[inline]
-pub fn read_char() -> u8 {
+fn read_char() -> u8 {
     std::io::stdin()
         .bytes()
         .next()
