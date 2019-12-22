@@ -1,36 +1,6 @@
+use ::cerebrojoder_rs::{Instruction, Module, HEAPSIZE, STACKSIZE};
+
 use std::io::{self, Read};
-
-const HEAPSIZE: usize = 30000;
-const STACKSIZE: usize = 30000;
-
-#[derive(Copy, Clone)]
-enum Instruction {
-    Backward(u8),
-    Forward(u8),
-    Subtract(u8),
-    Add(u8),
-    Land,
-    Jump,
-    Write,
-    Read,
-    Nop,
-}
-
-impl Instruction {
-    fn get_instruction(character: char, value: u8) -> Instruction {
-        match character {
-            '<' => Instruction::Backward(value),
-            '>' => Instruction::Forward(value),
-            '-' => Instruction::Subtract(value),
-            '+' => Instruction::Add(value),
-            '[' => Instruction::Land,
-            ']' => Instruction::Jump,
-            '.' => Instruction::Write,
-            ',' => Instruction::Read,
-            _ => Instruction::Nop,
-        }
-    }
-}
 
 fn read_char() -> u8 {
     std::io::stdin()
@@ -54,7 +24,7 @@ fn take_all(buffer: &str, character: char) -> (&str, &str) {
     (&buffer[0..partition], &buffer[partition..])
 }
 
-fn parse_and_compile(buffer: &str) -> ([Instruction; HEAPSIZE], usize, [usize; HEAPSIZE]) {
+fn parse_and_compile(buffer: &str) -> Module<Instruction> {
     let mut code_segment: [Instruction; HEAPSIZE] = [Instruction::Nop; HEAPSIZE];
     let mut jump_lookup: [usize; HEAPSIZE] = [0; HEAPSIZE];
     let mut stack_lookup: [usize; STACKSIZE] = [0; STACKSIZE];
@@ -109,12 +79,14 @@ fn parse_and_compile(buffer: &str) -> ([Instruction; HEAPSIZE], usize, [usize; H
         code_length = code_counter + 1;
     }
 
-    (code_segment, code_length, jump_lookup)
+    Module {
+        code_segment,
+        code_length,
+        jump_lookup,
+    }
 }
 
-fn execute(
-  code_segment: [Instruction; HEAPSIZE], code_length: usize, jump_lookup: [usize; HEAPSIZE])
-  -> io::Result<()> {
+fn execute(module: &Module<Instruction>) -> io::Result<()> {
     // 8bit signed rollover is necessary for the mandelbrot implementation, so we use i8 for the
     // data segment.
     let mut data_segment: [i8; HEAPSIZE] = [0; HEAPSIZE];
@@ -122,20 +94,20 @@ fn execute(
     // Execute
     let mut code_ptr: usize = 0;
     let mut data_ptr: usize = 0;
-    while code_ptr < code_length {
-        match code_segment[code_ptr] {
+    while code_ptr < module.code_length {
+        match module.code_segment[code_ptr] {
             Instruction::Backward(v) => data_ptr = data_ptr - v as usize,
             Instruction::Forward(v) => data_ptr = data_ptr + v as usize,
             Instruction::Add(v) => data_segment[data_ptr] = data_segment[data_ptr] + v as i8,
             Instruction::Subtract(v) => data_segment[data_ptr] = data_segment[data_ptr] - v as i8,
             Instruction::Land => {
                 if data_segment[data_ptr] == 0 {
-                    code_ptr = jump_lookup[code_ptr];
+                    code_ptr = module.jump_lookup[code_ptr];
                 }
             },
             Instruction::Jump => {
                 if data_segment[data_ptr] != 0 {
-                    code_ptr = jump_lookup[code_ptr];
+                    code_ptr = module.jump_lookup[code_ptr];
                 }
             },
             Instruction::Write => {
@@ -154,7 +126,7 @@ fn main() -> io::Result<()> {
     let mut buffer = String::new();
     io::stdin().read_to_string(&mut buffer)?;
 
-    let (code_segment, code_length, jump_lookup) = parse_and_compile(&buffer);
+    let module = parse_and_compile(&buffer);
 
-    execute(code_segment, code_length, jump_lookup)
+    execute(&module)
 }
