@@ -184,17 +184,429 @@ impl Executor<Instruction> for BfInterpreter {
     }
 }
 
+// pub struct x86Jit;
+// type X86 = usize;
+
+// impl Compiler<Instruction, X86> for x86Jit {
+//     fn compile(_module: &Module<Instruction>) -> Module<X86> {
+//         todo!("WasmJit compiler not yet implemented.");
+
+//         Module {
+//             code_segment: [0; HEAPSIZE],
+//             code_length: 0,
+//             jump_lookup: [0; HEAPSIZE],
+//         }
+//     }
+// }
+
+// impl Executor<X86> for x86Jit {
+//     fn execute(module: &Module<X86>) -> std::io::Result<()> {
+//         panic!("Not yet implemented")
+//         // // 8bit signed rollover is necessary for the mandelbrot implementation, so we use i8 for the
+//         // // data segment.
+//         // let mut data_segment: [i8; HEAPSIZE] = [0; HEAPSIZE];
+
+//         // // Execute
+//         // let mut code_ptr: usize = 0;
+//         // let mut data_ptr: usize = 0;
+//         // while code_ptr < module.code_length {
+//         //     match module.code_segment[code_ptr] {
+//         //         Instruction::Backward(v) => data_ptr = data_ptr - v as usize,
+//         //         Instruction::Forward(v) => data_ptr = data_ptr + v as usize,
+//         //         Instruction::Add(v) => data_segment[data_ptr] = data_segment[data_ptr] + v as i8,
+//         //         Instruction::Subtract(v) => {
+//         //             data_segment[data_ptr] = data_segment[data_ptr] - v as i8
+//         //         }
+//         //         Instruction::Land => {
+//         //             if data_segment[data_ptr] == 0 {
+//         //                 code_ptr = module.jump_lookup[code_ptr];
+//         //             }
+//         //         }
+//         //         Instruction::Jump => {
+//         //             if data_segment[data_ptr] != 0 {
+//         //                 code_ptr = module.jump_lookup[code_ptr];
+//         //             }
+//         //         }
+//         //         Instruction::Write => {
+//         //             print!("{}", data_segment[data_ptr] as u8 as char);
+//         //         }
+//         //         Instruction::Read => data_segment[data_ptr] = read_char() as i8,
+//         //         Instruction::Nop => (),
+//         //     }
+//         //     code_ptr = code_ptr + 1;
+//         // }
+
+//         // Ok(())
+//     }
+// }
+
 pub struct WasmJit;
+
+impl WasmJit {
+    fn translate(
+        &mut self,
+        source: &[Instruction],
+        jump_lookup: &[usize],
+        jump_offset: usize,
+        module: &walrus::Module,
+        data_ptr: walrus::LocalId,
+        data_segment: walrus::MemoryId,
+        get_char: walrus::FunctionId,
+        put_char: walrus::FunctionId,
+    ) -> Vec<walrus::ir::Instr> {
+        use walrus::ir;
+
+        let mut output: Vec<ir::Instr> = Vec::with_capacity(source.len());
+        let mut cursor = 0;
+        while cursor < source.len() {
+            let mut translation: Vec<ir::Instr> = match source[cursor] {
+                // Instruction::Backward(v) => data_ptr = data_ptr - v as usize,
+                Instruction::Backward(v) => {
+                    vec![
+                        (ir::LocalGet { local: data_ptr }).into(),
+                        (ir::Const {
+                            value: ir::Value::I32(i32::from(v)),
+                        })
+                        .into(),
+                        (ir::Binop {
+                            op: ir::BinaryOp::I32Sub,
+                        })
+                        .into(),
+                        (ir::LocalSet { local: data_ptr }).into(),
+                    ]
+                }
+                // Instruction::Forward(v) => data_ptr = data_ptr + v as usize,
+                Instruction::Forward(v) => {
+                    vec![
+                        (ir::LocalGet { local: data_ptr }).into(),
+                        (ir::Const {
+                            value: ir::Value::I32(i32::from(v)),
+                        })
+                        .into(),
+                        (ir::Binop {
+                            op: ir::BinaryOp::I32Add,
+                        })
+                        .into(),
+                        (ir::LocalSet { local: data_ptr }).into(),
+                    ]
+                }
+                // Instruction::Add(v) => data_segment[data_ptr] = data_segment[data_ptr] + v as i8,
+                Instruction::Add(v) => {
+                    vec![
+                        (ir::LocalGet { local: data_ptr }).into(),
+                        (ir::Load {
+                            memory: data_segment,
+                            kind: ir::LoadKind::I32_8 {
+                                kind: ir::ExtendedLoad::ZeroExtend,
+                            },
+                            arg: ir::MemArg {
+                                align: 1,
+                                offset: 0,
+                            },
+                        })
+                        .into(),
+                        (ir::Const {
+                            value: ir::Value::I32(i32::from(v)),
+                        })
+                        .into(),
+                        (ir::Binop {
+                            op: ir::BinaryOp::I32Add,
+                        })
+                        .into(),
+                        (ir::Store {
+                            memory: data_segment,
+                            kind: ir::StoreKind::I32_8 { atomic: false },
+                            arg: ir::MemArg {
+                                align: 1,
+                                offset: 0,
+                            },
+                        })
+                        .into(),
+                    ]
+                }
+                // Instruction::Subtract(v) => {
+                //     data_segment[data_ptr] = data_segment[data_ptr] - v as i8
+                // }
+                Instruction::Subtract(v) => {
+                    vec![
+                        (ir::LocalGet { local: data_ptr }).into(),
+                        (ir::Load {
+                            memory: data_segment,
+                            kind: ir::LoadKind::I32_8 {
+                                kind: ir::ExtendedLoad::ZeroExtend,
+                            },
+                            arg: ir::MemArg {
+                                align: 1,
+                                offset: 0,
+                            },
+                        })
+                        .into(),
+                        (ir::Const {
+                            value: ir::Value::I32(i32::from(v)),
+                        })
+                        .into(),
+                        (ir::Binop {
+                            op: ir::BinaryOp::I32Sub,
+                        })
+                        .into(),
+                        (ir::Store {
+                            memory: data_segment,
+                            kind: ir::StoreKind::I32_8 { atomic: false },
+                            arg: ir::MemArg {
+                                align: 1,
+                                offset: 0,
+                            },
+                        })
+                        .into(),
+                    ]
+                }
+                // Instruction::Land => {
+                //     if data_segment[data_ptr] == 0 {
+                //         code_ptr = module.jump_lookup[code_ptr];
+                //     }
+                // }
+                Instruction::Land => {
+                    let inner_source = &source[cursor + 1..jump_lookup[cursor - jump_offset]];
+                    let inner_wasm = self.translate(
+                        inner_source,
+                        jump_lookup,
+                        jump_offset + cursor,
+                        module,
+                        data_ptr,
+                        data_segment,
+                        get_char,
+                        put_char,
+                    );
+                    cursor += inner_source.len();
+                    vec![
+                        // Block,
+                        // Loop,
+                        // Check-skip (block)
+                        // ... code ...
+                        // Check-repeat (loop)
+                        // End Loop,
+                        // End Block,
+                    ]
+                }
+                // Instruction::Jump => {
+                //     if data_segment[data_ptr] != 0 {
+                //         code_ptr = module.jump_lookup[code_ptr];
+                //     }
+                // }
+                Instruction::Jump => vec![],
+                // Instruction::Write => {
+                //     print!("{}", data_segment[data_ptr] as u8 as char);
+                // }
+                Instruction::Write => {
+                    vec![
+                        (ir::LocalGet { local: data_ptr }).into(),
+                        (ir::Load {
+                            memory: data_segment,
+                            kind: ir::LoadKind::I32_8 {
+                                kind: ir::ExtendedLoad::ZeroExtend,
+                            },
+                            arg: ir::MemArg {
+                                align: 1,
+                                offset: 0,
+                            },
+                        })
+                        .into(),
+                        (ir::Call { func: todo!() }).into(),
+                    ]
+                }
+                // Instruction::Read => data_segment[data_ptr] = read_char() as i8,
+                Instruction::Read => todo!(),
+                // Instruction::Nop => (),
+                Instruction::Nop => vec![],
+            };
+
+            cursor += 1;
+            output.append(&mut translation);
+        }
+        output
+    }
+}
 
 // Not yet implemented;
 type WASM = u8;
 
 impl Compiler<Instruction, WASM> for WasmJit {
-    fn compile(_module: &Module<Instruction>) -> Module<WASM> {
+    fn compile(module: &Module<Instruction>) -> Module<WASM> {
+        use walrus::ir;
         println!("WasmJit compiler not yet implemented.");
 
+        let mut wasm_module = walrus::Module::default();
+        // TODO(alex): Add import for getting a character
+        // TODO(alex): Add import for printing a character
+
+        let put_char_type = wasm_module.types.add(&[], &[]);
+        let get_char_type = wasm_module.types.add(&[], &[]);
+        // let put_char_import = wasm_module.imports.add("brainfuck", "output_byte",
+
+        let data_segment = wasm_module
+            .memories
+            .add_local(false, 0, Some(HEAPSIZE as u32));
+        let data_ptr = wasm_module.locals.add(walrus::ValType::I32);
+        let wasm_instructions: Vec<ir::Instr> = module
+            .code_segment
+            .iter()
+            .enumerate()
+            .flat_map(|(code_ptr, inst)| {
+                match inst {
+                    // Instruction::Backward(v) => data_ptr = data_ptr - v as usize,
+                    Instruction::Backward(v) => {
+                        vec![
+                            (ir::LocalGet { local: data_ptr }).into(),
+                            (ir::Const {
+                                value: ir::Value::I32(i32::from(*v)),
+                            })
+                            .into(),
+                            (ir::Binop {
+                                op: ir::BinaryOp::I32Sub,
+                            })
+                            .into(),
+                            (ir::LocalSet { local: data_ptr }).into(),
+                        ]
+                    }
+                    // Instruction::Forward(v) => data_ptr = data_ptr + v as usize,
+                    Instruction::Forward(v) => {
+                        vec![
+                            (ir::LocalGet { local: data_ptr }).into(),
+                            (ir::Const {
+                                value: ir::Value::I32(i32::from(*v)),
+                            })
+                            .into(),
+                            (ir::Binop {
+                                op: ir::BinaryOp::I32Add,
+                            })
+                            .into(),
+                            (ir::LocalSet { local: data_ptr }).into(),
+                        ]
+                    }
+                    // Instruction::Add(v) => data_segment[data_ptr] = data_segment[data_ptr] + v as i8,
+                    Instruction::Add(v) => {
+                        vec![
+                            (ir::LocalGet { local: data_ptr }).into(),
+                            (ir::Load {
+                                memory: data_segment,
+                                kind: ir::LoadKind::I32_8 {
+                                    kind: ir::ExtendedLoad::ZeroExtend,
+                                },
+                                arg: ir::MemArg {
+                                    align: 1,
+                                    offset: 0,
+                                },
+                            })
+                            .into(),
+                            (ir::Const {
+                                value: ir::Value::I32(i32::from(*v)),
+                            })
+                            .into(),
+                            (ir::Binop {
+                                op: ir::BinaryOp::I32Add,
+                            })
+                            .into(),
+                            (ir::Store {
+                                memory: data_segment,
+                                kind: ir::StoreKind::I32_8 { atomic: false },
+                                arg: ir::MemArg {
+                                    align: 1,
+                                    offset: 0,
+                                },
+                            })
+                            .into(),
+                        ]
+                    }
+                    // Instruction::Subtract(v) => {
+                    //     data_segment[data_ptr] = data_segment[data_ptr] - v as i8
+                    // }
+                    Instruction::Subtract(v) => {
+                        vec![
+                            (ir::LocalGet { local: data_ptr }).into(),
+                            (ir::Load {
+                                memory: data_segment,
+                                kind: ir::LoadKind::I32_8 {
+                                    kind: ir::ExtendedLoad::ZeroExtend,
+                                },
+                                arg: ir::MemArg {
+                                    align: 1,
+                                    offset: 0,
+                                },
+                            })
+                            .into(),
+                            (ir::Const {
+                                value: ir::Value::I32(i32::from(*v)),
+                            })
+                            .into(),
+                            (ir::Binop {
+                                op: ir::BinaryOp::I32Sub,
+                            })
+                            .into(),
+                            (ir::Store {
+                                memory: data_segment,
+                                kind: ir::StoreKind::I32_8 { atomic: false },
+                                arg: ir::MemArg {
+                                    align: 1,
+                                    offset: 0,
+                                },
+                            })
+                            .into(),
+                        ]
+                    }
+                    // Instruction::Land => {
+                    //     if data_segment[data_ptr] == 0 {
+                    //         code_ptr = module.jump_lookup[code_ptr];
+                    //     }
+                    // }
+                    Instruction::Land => {
+                        vec![
+                            // Block,
+                            // Loop,
+                            // Check-skip (block)
+                        ]
+                    }
+                    // Instruction::Jump => {
+                    //     if data_segment[data_ptr] != 0 {
+                    //         code_ptr = module.jump_lookup[code_ptr];
+                    //     }
+                    // }
+                    Instruction::Jump => {
+                        vec![
+                            // Check-repeat (loop)
+                            // End Loop,
+                            // End Block,
+                        ]
+                    }
+                    // Instruction::Write => {
+                    //     print!("{}", data_segment[data_ptr] as u8 as char);
+                    // }
+                    Instruction::Write => {
+                        vec![
+                            (ir::LocalGet { local: data_ptr }).into(),
+                            (ir::Load {
+                                memory: data_segment,
+                                kind: ir::LoadKind::I32_8 {
+                                    kind: ir::ExtendedLoad::ZeroExtend,
+                                },
+                                arg: ir::MemArg {
+                                    align: 1,
+                                    offset: 0,
+                                },
+                            })
+                            .into(),
+                            (ir::Call { func: todo!() }).into(),
+                        ]
+                    }
+                    // Instruction::Read => data_segment[data_ptr] = read_char() as i8,
+                    Instruction::Read => todo!(),
+                    // Instruction::Nop => (),
+                    Instruction::Nop => vec![],
+                }
+            })
+            .collect();
+
         Module {
-            code_segment: [0; HEAPSIZE],
+            code_segment: todo!(),
             code_length: 0,
             jump_lookup: [0; HEAPSIZE],
         }
